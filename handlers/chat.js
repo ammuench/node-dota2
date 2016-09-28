@@ -18,6 +18,7 @@ Dota2.Dota2Client.prototype._getChannelByName = function(channel_name, channel_t
     }
 }
 
+
 Dota2.Dota2Client.prototype._getChannelById = function(channel_id) {
     // Returns the channel corresponding to the given channel_id
     if (this.chatChannels) {
@@ -195,21 +196,23 @@ var onOtherLeftChannel = function onOtherLeftChannel(message) {
     var channel = this._getChannelById(otherLeft.channel_id);
     // Check if it is me that left the channel
     if ("" + otherLeft.steam_id === "" + this._client.steamID) {
-        if (this.debug) {
-            if (channel) {
-                util.log("Left channel " + channel.channel_name);
-            } else {    
-                util.log("This probably should be physically impossible, but whatever: you managed to leave a channel you didn't know you were in, congratulations...");
+        if(channel){
+            if (this.debug) {
+                if (channel) {
+                    util.log("Left channel " + channel.channel_name);
+                } else {    
+                    util.log("This probably should be physically impossible, but whatever: you managed to leave a channel you didn't know you were in, congratulations...");
+                }
             }
+            this.emit("chatLeave",
+                channel.channel_name,
+                otherLeft.steam_id,
+                otherLeft);
+            // Delete channel from cache
+            this.chatChannels = this.chatChannels.filter(function(item) {
+                if ("" + item.channel_id == "" + channel.channel_id) return false;
+            });
         }
-        this.emit("chatLeave",
-            channel.channel_name,
-            otherLeft.steam_id,
-            otherLeft);
-        // Delete channel from cache
-        this.chatChannels = this.chatChannels.filter(function(item) {
-            if ("" + item.channel_id == "" + channel.channel_id) return false;
-        });
     } else {
         if (this.debug) {
             if (channel) {
