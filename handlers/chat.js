@@ -162,13 +162,14 @@ var onChatMessage = function onChatMessage(message) {
     /* Chat channel message from another user. */
     var chatData = Dota2.schema.CMsgDOTAChatMessage.decode(message);
     var channel = this._getChannelById(chatData.channel_id);
-
-    if (this.debug) util.log("Received chat message from " + chatData.persona_name + " in channel " + channel.channel_name);
-    this.emit("chatMessage",
-        channel.channel_name,
-        chatData.persona_name,
-        chatData.text,
-        chatData);
+    if (channel) {
+        if (this.debug) util.log("Received chat message from " + chatData.persona_name + " in channel " + channel.channel_name);
+        this.emit("chatMessage",
+            channel.channel_name,
+            chatData.persona_name,
+            chatData.text,
+            chatData);
+    }
 };
 handlers[Dota2.schema.EDOTAGCMsg.k_EMsgGCChatMessage] = onChatMessage;
 
@@ -176,17 +177,19 @@ var onOtherJoinedChannel = function onOtherJoinedChannel(message) {
     /* Someone joined a chat channel you're in. */
     var otherJoined = Dota2.schema.CMsgDOTAOtherJoinedChatChannel.decode(message);
     var channel = this._getChannelById(otherJoined.channel_id);
-    if (this.debug) util.log(otherJoined.steam_id + " joined channel " + channel.channel_name);
-    this.emit("chatJoin",
-        channel.channel_name,
-        otherJoined.persona_name,
-        otherJoined.steam_id,
-        otherJoined);
-    // Add member to cached chatChannels
-    channel.members.push(new Dota2.schema.CMsgDOTAChatMember({
-        steam_id: otherJoined.steam_id,
-        persona_name: otherJoined.persona_name
-    }));
+    if (channel) {    
+        if (this.debug) util.log(otherJoined.steam_id + " joined channel " + channel.channel_name);
+        this.emit("chatJoin",
+            channel.channel_name,
+            otherJoined.persona_name,
+            otherJoined.steam_id,
+            otherJoined);
+        // Add member to cached chatChannels
+        channel.members.push(new Dota2.schema.CMsgDOTAChatMember({
+            steam_id: otherJoined.steam_id,
+            persona_name: otherJoined.persona_name
+        }));
+    }
 };
 handlers[Dota2.schema.EDOTAGCMsg.k_EMsgGCOtherJoinedChannel] = onOtherJoinedChannel;
 
@@ -194,41 +197,45 @@ var onOtherLeftChannel = function onOtherLeftChannel(message) {
     /* Someone left a chat channel you're in. */
     var otherLeft = Dota2.schema.CMsgDOTAOtherLeftChatChannel.decode(message);
     var channel = this._getChannelById(otherLeft.channel_id);
-    // Check if it is me that left the channel
-    if ("" + otherLeft.steam_id === "" + this._client.steamID) {
-        if(channel){
-            if (this.debug) {
-                if (channel) {
-                    util.log("Left channel " + channel.channel_name);
-                } else {    
-                    util.log("This probably should be physically impossible, but whatever: you managed to leave a channel you didn't know you were in, congratulations...");
+    if (channel) {
+        // Check if it is me that left the channel
+        if ("" + otherLeft.steam_id === "" + this._client.steamID) {
+            if(channel){
+                if (this.debug) {
+                    if (channel) {
+                        util.log("Left channel " + channel.channel_name);
+                    } else {    
+                        util.log("This probably should be physically impossible, but whatever: you managed to leave a channel you didn't know you were in, congratulations...");
+                    }
                 }
+                this.emit("chatLeave",
+                    channel.channel_name,
+                    otherLeft.steam_id,
+                    otherLeft);
+                // Delete channel from cache
+                this.chatChannels = this.chatChannels.filter(function(item) {
+                    if ("" + item.channel_id == "" + channel.channel_id) return false;
+                });
             }
-            this.emit("chatLeave",
-                channel.channel_name,
-                otherLeft.steam_id,
-                otherLeft);
-            // Delete channel from cache
-            this.chatChannels = this.chatChannels.filter(function(item) {
-                if ("" + item.channel_id == "" + channel.channel_id) return false;
-            });
-        }
-    } else {
-        if (this.debug) {
-            if (channel) {
-                util.log(otherLeft.steam_id + " left channel " + channel.channel_name);
-            } else {
-                util.log(otherLeft.steam_id + " left channel " + otherLeft.channel_id + " (PS: why do I get messages from a chat I don't know? Did you kill me D: ?)");
+        } else {
+            if (channel)
+                if (this.debug) {
+                    if (channel) {
+                        util.log(otherLeft.steam_id + " left channel " + channel.channel_name);
+                    } else {
+                        util.log(otherLeft.steam_id + " left channel " + otherLeft.channel_id + " (PS: why do I get messages from a chat I don't know? Did you kill me D: ?)");
+                    }
+                }
+                this.emit("chatLeave",
+                    channel.channel_name,
+                    otherLeft.steam_id,
+                    otherLeft);
+                // Delete member from cached chatChannel
+                channel.members = channel.members.filter(function(item) {
+                    return ("" + item.steam_id !== "" + otherLeft.steam_id);
+                });
             }
         }
-        this.emit("chatLeave",
-            channel.channel_name,
-            otherLeft.steam_id,
-            otherLeft);
-        // Delete member from cached chatChannel
-        channel.members = channel.members.filter(function(item) {
-            return ("" + item.steam_id !== "" + otherLeft.steam_id);
-        });
     }
 };
 handlers[Dota2.schema.EDOTAGCMsg.k_EMsgGCOtherLeftChannel] = onOtherLeftChannel;
