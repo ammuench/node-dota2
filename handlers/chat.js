@@ -218,7 +218,7 @@ var onOtherLeftChannel = function onOtherLeftChannel(message) {
                 });
             }
         } else {
-            if (channel)
+            if (channel) {
                 if (this.debug) {
                     if (channel) {
                         util.log(otherLeft.steam_id + " left channel " + channel.channel_name);
